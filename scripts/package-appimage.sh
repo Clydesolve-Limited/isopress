@@ -25,11 +25,18 @@
 #   * appimagetool is cached under dist/.cache/ and run with
 #     APPIMAGE_EXTRACT_AND_RUN=1 so no FUSE device is needed (CI
 #     runners typically have no /dev/fuse).
+#   * CI hardening for the pack step: stdin is closed (< /dev/null) so
+#     an interactive prompt on an error path fails instead of hanging;
+#     the pack runs under timeout(1) with a hard wall-clock bound
+#     (default 300s, override with APPIMAGETOOL_TIMEOUT=<seconds>) so a
+#     hang fails loudly with exit 124; and --no-appstream suppresses
+#     appimagetool's AppStream warning, which is expected noise here
+#     (this CLI tool ships no AppStream metadata by design).
 #
 set -euo pipefail
 
 usage() {
-  sed -n '2,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 OUTPUT_DIR=""
@@ -43,9 +50,14 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-for tool in go curl rsvg-convert desktop-file-validate; do
+for tool in go curl rsvg-convert desktop-file-validate timeout; do
   command -v "$tool" >/dev/null 2>&1 || {
-    echo "error: $tool not found on PATH (Debian/Ubuntu: apt install librsvg2-bin desktop-file-utils curl)" >&2; exit 1; }
+    if [ "$tool" = timeout ]; then
+      echo "error: timeout not found on PATH (coreutils; Debian/Ubuntu: apt install coreutils)" >&2
+    else
+      echo "error: $tool not found on PATH (Debian/Ubuntu: apt install librsvg2-bin desktop-file-utils curl)" >&2
+    fi
+    exit 1; }
 done
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
@@ -144,9 +156,41 @@ umask 022
 mkdir -p "$OUTPUT_DIR"
 APPIMAGE_PATH="$OUTPUT_DIR/isopress-$VERSION-amd64.AppImage"
 rm -f "$APPIMAGE_PATH"
-# APPIMAGE_EXTRACT_AND_RUN=1: unpack and run without FUSE (no /dev/fuse
-# on CI runners); VERSION is embedded by appimagetool as metadata.
-VERSION="$VERSION" APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" "$APPDIR" "$APPIMAGE_PATH"
+
+# Hard wall-clock bound for the pack step; override with
+# APPIMAGETOOL_TIMEOUT=<seconds> (0 is not allowed: timeout(1) treats it
+# as "disable the limit").
+APPIMAGETOOL_TIMEOUT="${APPIMAGETOOL_TIMEOUT:-300}"
+case "$APPIMAGETOOL_TIMEOUT" in
+  ''|*[!0-9]*|0)
+    echo "error: APPIMAGETOOL_TIMEOUT must be a positive integer of seconds (got: '$APPIMAGETOOL_TIMEOUT')" >&2
+    exit 2 ;;
+esac
+
+# Packing hardening (see header):
+#   * APPIMAGE_EXTRACT_AND_RUN=1: unpack and run without FUSE (no
+#     /dev/fuse on CI runners); VERSION is embedded as metadata.
+#   * --no-appstream: no AppStream metadata is shipped by design, so the
+#     check's warning is expected noise (verified against the cached
+#     appimagetool continuous build: it supports the flag).
+#   * < /dev/null: CI has no TTY; an interactive prompt on an error path
+#     must fail fast, not hang waiting for input.
+#   * timeout: converts a silent appimagetool/mksquashfs hang into a
+#     loud failure (exit 124) with the partial output above still
+#     visible; --kill-after escalates to SIGKILL if the child ignores
+#     SIGTERM.
+rc=0
+VERSION="$VERSION" APPIMAGE_EXTRACT_AND_RUN=1 \
+  timeout --kill-after=30 "$APPIMAGETOOL_TIMEOUT" \
+  "$TOOL" --no-appstream "$APPDIR" "$APPIMAGE_PATH" < /dev/null || rc=$?
+if [ "$rc" -eq 124 ]; then
+  echo "error: appimagetool timed out after ${APPIMAGETOOL_TIMEOUT}s - see output above" >&2
+  exit 124
+fi
+if [ "$rc" -ne 0 ]; then
+  echo "error: appimagetool exited with status $rc" >&2
+  exit "$rc"
+fi
 chmod +x "$APPIMAGE_PATH"
 
 # ---------------------------------------------------------------------------

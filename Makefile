@@ -11,7 +11,7 @@
 # in a fresh shell.
 GOPATH_BIN := $(shell go env GOPATH)/bin
 
-.PHONY: build test test-e2e test-perf test-race vet verify vulncheck lint help publish deb appimage
+.PHONY: build test test-e2e test-perf test-race vet verify vulncheck lint help publish deb appimage release
 
 build:
 	go build -o bin/isopress ./cmd/isopress
@@ -99,6 +99,15 @@ deb:
 appimage:
 	./scripts/package-appimage.sh
 
+# release runs the RELEASING flow through scripts/release.sh: the seven
+# gates in order (verify, lint, vulncheck, test, test-e2e, test-perf,
+# test-race), the deb+appimage artifacts with their sha256s, the
+# annotated vX.Y.Z tag whose message is the release note, the push to
+# origin, and the GitHub mirror via scripts/publish.sh. Arguments pass
+# through RELEASE_FLAGS, e.g. `make release RELEASE_FLAGS="--dry-run"`.
+release:
+	./scripts/release.sh $(RELEASE_FLAGS)
+
 help:
 	@echo "isopress make targets:"
 	@echo "  build        build bin/isopress (default target)"
@@ -113,4 +122,5 @@ help:
 	@echo "  publish      sanitized snapshot push to GitHub (scripts/publish.sh; PUBLISH_FLAGS=...)"
 	@echo "  deb          dist/isopress_<version>_amd64.deb (scripts/package-deb.sh)"
 	@echo "  appimage     dist/isopress-<version>-amd64.AppImage (scripts/package-appimage.sh)"
+	@echo "  release      gates + artifacts + annotated vX.Y.Z tag + GitHub mirror (scripts/release.sh; RELEASE_FLAGS=...)"
 	@echo "  help         this list"

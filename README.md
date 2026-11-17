@@ -1,6 +1,6 @@
 # isopress
 
-`isopress` is a command-line backup tool for Linux, written in Go. It scans a
+`isopress` is a command-line backup tool for Linux, written in Go created by <a href='https://www.clydesolve.com/index.html'>ClydeSolve Limited</a>. It scans a
 source tree into a SQLite catalog (per-file SHA-256 hashes plus filesystem
 metadata), plans that cataloged data onto sized destinations, and writes the plan
 as copy trees (plain directories) and/or ISO 9660 images produced with `xorriso`.
@@ -1050,7 +1050,7 @@ should stay clean.
 
 Every gate below has a `make` target; `make help` prints the full list
 (`build`, `test`, `vet`, `test-e2e`, `test-perf`, `test-race`, `verify`,
-`vulncheck`, `lint`, `publish`, `deb`, `appimage`, `help`). In the table, the
+`vulncheck`, `lint`, `publish`, `deb`, `appimage`, `release`, `help`). In the table, the
 first column pairs each target with the recipe it runs, copied verbatim from
 the Makefile, so `make <target>`
 and the raw command run the identical command. The one exception is the `large`
@@ -1061,6 +1061,24 @@ sanitized single-commit snapshot of the tree to the public GitHub repository;
 run `scripts/publish.sh --help` for its flags.
 
 Packaging targets build the distributable release artifacts from the same tree: `make deb` runs `scripts/package-deb.sh` (static release binary, version read from the binary's own `--version`) and writes dist/isopress_<version>_amd64.deb; `make appimage` runs `scripts/package-appimage.sh` (AppDir with the desktop entry and icon from packaging/, packed with appimagetool) and writes dist/isopress-<version>-amd64.AppImage. Both write only under dist/, which is git-ignored.
+
+`make release` cuts a release end to end through `scripts/release.sh`: the seven
+gates in order (`verify`, `lint`, `vulncheck`, `test`, `test-e2e`, `test-perf`,
+`test-race`), both packaging artifacts with their sha256s captured, the
+annotated `vX.Y.Z` tag whose message is the release note (version line,
+gate-results line, both sha256 lines), the push to `origin`, and the mirror to
+GitHub through `scripts/publish.sh --tag vX.Y.Z`, where the tag-triggered
+workflow publishes the GitHub Release with both artifacts attached. The version
+is parsed from the built binary's own `--version`, so there is no version
+argument, and a dirty working tree or an already-existing tag aborts before
+anything is written. Arguments pass through `RELEASE_FLAGS`, e.g. `make release
+RELEASE_FLAGS="--dry-run"` runs the gates and builds the artifacts, prints the
+composed tag message and the commands that would run, and writes nothing;
+`RELEASE_SKIP_GATES=1` skips the gates with a loud warning and records the skip
+in the tag message. `GITHUB_URL` (or `--url`) may be left unset: the tag and
+the `origin` push still happen and the script prints the follow-up mirror
+command. The version flip to `X.Y.Z` and the bump to the next `-dev` stay
+manual.
 
 Test tiers, by build tag:
 
@@ -1131,4 +1149,4 @@ README is the entry point for the published tree.
 isopress is licensed under the Apache License, Version 2.0. The full text of
 the licence is in [LICENSE](LICENSE).
 
-Copyright 2026 Clyde Solve
+Copyright 2026 <a href='https://www.clydesolve.com/isopress.html'>ClydeSolve Limited</a>

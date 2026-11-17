@@ -1,0 +1,55 @@
+# If you prefer the allow list of binary, use the following lines instead:
+# *.exe
+# *.test
+# *.out
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when using -coverprofile
+*.out
+coverage.txt
+coverage.html
+profile.cov
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# Build output directory (common convention)
+/bin/
+/dist/
+/build/
+
+# Release artifacts built into the repo root (legacy recipe paths)
+/isopress-*
+
+# Debug binaries / delve
+__debug_bin*
+
+# IDE / editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Environment / secrets (never commit)
+.env
+.env.*
+*.pem
+*.key

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=isopress
+Comment=A lightweight command-line tool to make it easier to back up directories with a large number of files to multiple Blu-ray discs.
+Exec=isopress
+Icon=isopress
+Terminal=true
+# Categories: "Utility;Console;" was the intended value, but
+# desktop-file-validate rejects "Console" as an unregistered menu
+# category (freedesktop menu spec); Terminal=true already marks this as
+# a console application. Revisit if a real brand icon/desktop polish
+# round lands.
+Categories=Utility;
